@@ -4,7 +4,11 @@ torch
 networkx
 tqdm
 scipy
-geoopt
+geoopt==0.3.1
 biopython
 python-Levenshtein
 matplotlib
+geomstats==2.2
+torch==1.7.1+cu101
+torchvision==0.8.2+cu101
+torchaudio==0.7.2 

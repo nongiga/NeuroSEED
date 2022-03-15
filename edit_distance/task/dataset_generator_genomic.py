@@ -5,6 +5,9 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
+import sys
+sys.path.insert(0, os.path.abspath('./'))
+
 from util.bioinformatics_algorithms.edit_distance import cross_distance_matrix_threads
 from util.data_handling.string_generator import string_to_list
 
@@ -49,7 +52,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_size', type=int, default=7000, help='Training sequences')
     parser.add_argument('--val_size', type=int, default=700, help='Validation sequences')
     parser.add_argument('--test_size', type=int, default=1500, help='Test sequences')
-    parser.add_argument('--source_sequences', type=str, default='./data/qiita.txt', help='Sequences data path')
+    parser.add_argument('--source_sequences', type=str, default='./datasets/subset_FINAL.fasta', help='Sequences data path')
     args = parser.parse_args()
 
     # load and divide sequences
