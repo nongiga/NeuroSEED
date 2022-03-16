@@ -10,7 +10,8 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 from closest_string.test import closest_string_testing
-from edit_distance.task.dataset import EditDistanceDatasetSampled, EditDistanceDatasetComplete
+from edit_distance.task.dataset import EditDistanceDatasetSampled, EditDistanceDatasetComplete,EditDistanceDatasetSampledCalculated
+from edit_distance.task.dataset import EditDistanceDatasetCompleteCalculated
 from edit_distance.models.hyperbolics import RAdam
 from edit_distance.models.pair_encoder import PairEmbeddingDistance
 from hierarchical_clustering.unsupervised.unsupervised import hierarchical_clustering_testing
@@ -199,6 +200,22 @@ def load_edit_distance_dataset(path):
             datasets[key] = EditDistanceDatasetSampled(sequences[key], distances[key])
     return datasets
 
+def load_edit_distance_dataset_calculate(path):
+    with open(path, 'rb') as f:
+        sequences, distances = pickle.load(f)
+
+    datasets = {}
+    for key in sequences.keys():
+        if len(sequences[key].shape) == 2:  # datasets without batches
+            if key == 'train':
+                datasets[key] = EditDistanceDatasetSampledCalculated(sequences[key].unsqueeze(0), distances[key].unsqueeze(0),
+                                                           multiplicity=10)
+            else:
+                datasets[key] = EditDistanceDatasetCompleteCalculated(sequences[key], distances[key])
+        else:  # datasets with batches
+            datasets[key] = EditDistanceDatasetSampledCalculated(sequences[key], distances[key])
+    return datasets
+
 
 def train(model, loader, optimizer, loss, device):
     avg_loss = AverageMeter()
@@ -253,7 +270,7 @@ def test_and_plot(model, loader, loss, device, dataset):
 
         # forward propagation and loss computation
         output = model(sequences)
-        loss_val = loss(output, labels).data.item()
+        loss_val = loss[dt](output, labels).data.item()
         mape = MAPE(output, labels).data.item()
         avg_loss.update((loss_val, mape), sequences.shape[0])
 
