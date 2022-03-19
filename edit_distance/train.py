@@ -225,6 +225,7 @@ def train(model, loader, optimizer, loss, device):
         # move examples to right device
         sequences, labels = sequences.to(device), labels.to(device)
 
+        with torch.autograd.set_detect_anomaly(True):
         # forward propagation
         optimizer.zero_grad()
         output = model(sequences)

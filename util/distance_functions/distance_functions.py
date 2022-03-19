@@ -1,29 +1,32 @@
 import torch
 import torch.nn as nn
 import numpy as np
+from geomstats.geometry.poincare_ball import PoincareBall
 
-
-def square_distance(t1_emb, t2_emb):
+def square_distance(t1_emb, t2_emb,scale=1):
     D = t1_emb - t2_emb
     d = torch.sum(D * D, dim=-1)
     return d
 
 
-def euclidean_distance(t1_emb, t2_emb):
+def euclidean_distance(t1_emb, t2_emb,scale=1):
     D = t1_emb - t2_emb
     d = torch.norm(D, dim=-1)
     return d
 
 
-def cosine_distance(t1_emb, t2_emb):
+def cosine_distance(t1_emb, t2_emb,scale=1):
     return 1 - nn.functional.cosine_similarity(t1_emb, t2_emb, dim=-1, eps=1e-6)
 
 
-def manhattan_distance(t1_emb, t2_emb):
+def manhattan_distance(t1_emb, t2_emb,scale=1):
     D = t1_emb - t2_emb
     d = torch.sum(torch.abs(D), dim=-1)
     return d
 
+def hyperbolic_geomstats_distance(u,v,scale=1):
+    return PoincareBall(u.size()[1]).metric.dist(u,v)
+    
 
 def hyperbolic_distance(u, v, epsilon=1e-7):  # changed from epsilon=1e-7 to reduce error
     sqdist = torch.sum((u - v) ** 2, dim=-1)
