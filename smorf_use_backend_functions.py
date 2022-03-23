@@ -30,7 +30,7 @@ print(torch.__version__)
 # In[2]:
 
 
-def compare_models(dataset_name, embedding_size, dist_types, string_size, n_epoch):
+def run_model(dataset_name, embedding_size, dist_type, string_size, n_epoch):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     torch.manual_seed(2021)
     if device == 'cuda':
@@ -41,53 +41,55 @@ def compare_models(dataset_name, embedding_size, dist_types, string_size, n_epoc
     loaders = get_dataloaders(datasets, batch_size=128, workers=5)
 
     # model, optimizer and loss
-    model,optimizer,loss,loss_train,loss_val,avg_loss={},{},{},{},{},{}
 
     encoder = LinearEncoder(string_size, embedding_size)
 
-    for dt in dist_types:
-        print(dt)
+    model = PairEmbeddingDistance(embedding_model=encoder, distance=dist_type,scaling=True)
+    loss = nn.MSELoss()
 
-        model[dt] = PairEmbeddingDistance(embedding_model=encoder, distance=dt,scaling=True)
-        loss = nn.MSELoss()
-
-        optimizer[dt] = optim.Adam(model[dt].parameters(), lr=1e-3)
-        optimizer[dt].zero_grad() 
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    optimizer.zero_grad() 
 
 
-        # training
-        for epoch in range(0, n_epoch):
-            t = time.time()
-            loss_train[dt] = train(model[dt], loaders['train'], optimizer[dt], loss, device)
-            loss_val[dt] = test(model[dt], loaders['val'], loss, device)
+    # training
+    for epoch in range(0, n_epoch):
+        t = time.time()
+        loss_train = train(model, loaders['train'], optimizer, loss, device)
+        loss_val = test(model, loaders['val'], loss, device)
 
-            # print progress
-            if epoch % 5 == 0:
-                print('Epoch: {:02d}'.format(epoch),
-                    'loss_train: {:.6f}'.format(loss_train[dt]),
-                    'loss_val: {:.6f}'.format(loss_val[dt]),
-                    'time: {:.4f}s'.format(time.time() - t))
-            
-        # testing
-        for dset in loaders.keys():
-            avg_loss[dt] = test(model[dt], loaders[dset], loss, device)
-            print('Final results {}: loss = {:.6f}'.format(dset, avg_loss[dt]))
+        # print progress
+        if epoch % 5 == 0:
+            print('Epoch: {:02d}'.format(epoch),
+                'loss_train: {:.6f}'.format(loss_train),
+                'loss_val: {:.6f}'.format(loss_val),
+                'time: {:.4f}s'.format(time.time() - t))
+        
+    # testing
+    for dset in loaders.keys():
+        avg_loss = test(model, loaders[dset], loss, device)
+        print('Final results {}: loss = {:.6f}'.format(dset, avg_loss))
 
     return model, avg_loss
 
-name='largest_group_strings'
 
-dataset_name='./datasets/'+name+'.pkl'
-dist_types=['hyperbolic', 'euclidean']
+# %%
+
 string_size=153
 n_epoch=20
-e_size=[2, 8, 32, 128]#np.logspace(1,9,num=9-1, base=2,endpoint=False, dtype=int)
-model, avg_loss={},{}
-# %%
-for i in range(len(e_size)):
-    model[e_size[i]],avg_loss[e_size[i]]=compare_models(dataset_name,e_size[i],dist_types,string_size,n_epoch)
+e_size=np.logspace(1,9,num=9-1, base=2,endpoint=False, dtype=int)
 
-pickle.dump((model,avg_loss), open(name+'.pkl', "wb"))
+dist_types=['hyperbolic', 'euclidean']
+
+model, avg_loss=np.zeros((len(e_size),len(dist_types)),dtype=object),np.zeros((len(e_size),len(dist_types)))
+
+names=['largest_group_strings', 'string_for_test', 'string_subset']
+dataset_name='./datasets/'+name+'.pkl'
+
+for name in names:
+    for i in range(len(e_size)):
+        for j in range(len(dist_types)):
+            model[i][j],avg_loss[i][j]=run_model(dataset_name,e_size[i],dist_types[j],string_size,n_epoch)
+    pickle.dump((model,avg_loss,e_size,dist_types), open(name+'.pkl', "wb"))
 
 
 
