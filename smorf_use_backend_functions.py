@@ -1,78 +1,42 @@
-#!/usr/bin/env python
-# coding: utf-8
+# %%
+# import sys
+sys.path.insert(0,'../')
 
-# Install and import the required packages. 
-
-# In[1]:
-
-import os
-os.environ['GEOMSTATS_BACKEND'] = 'pytorch'
-import torch
-import torch.nn as nn
-import torch.optim as optim
 import numpy as np
-import time
-from scipy.stats import mode
 import pickle
 import pandas as pd
-from util.data_handling.data_loader import get_dataloaders
-from edit_distance.train import load_edit_distance_dataset,train,test
-from edit_distance.models.pair_encoder import PairEmbeddingDistance
-from edit_distance.models.linear_encoder import LinearEncoder
+from scipy.stats import mode
 
-print(torch.__version__)
-# In this notebook, we only show the code to run a simple linear layer on the sequence which, in the hyperbolic space, already gives particularly good results. Later we will also report results for more complex models whose implementation can be found in the [NeuroSEED repository](https://github.com/gcorso/NeuroSEED).
-
-# General training and evaluation routines used to train the models:
-
-# The linear model is trained on 7000 sequences (+700 of validation) and tested on 1500 different sequences: 
-
-# In[2]:
-
-
-def run_model(dataset_name, embedding_size, dist_type, string_size, n_epoch):
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    torch.manual_seed(2021)
-    if device == 'cuda':
-        torch.cuda.manual_seed(2021)
-
-    # load data
-    datasets = load_edit_distance_dataset(dataset_name)
-    loaders = get_dataloaders(datasets, batch_size=128, workers=5)
-
-    # model, optimizer and loss
-
-    encoder = LinearEncoder(string_size, embedding_size)
-
-    model = PairEmbeddingDistance(embedding_model=encoder, distance=dist_type,scaling=True)
-    loss = nn.MSELoss()
-
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    optimizer.zero_grad() 
-
-
-    # training
-    for epoch in range(0, n_epoch):
-        t = time.time()
-        loss_train = train(model, loaders['train'], optimizer, loss, device)
-        loss_val = test(model, loaders['val'], loss, device)
-
-        # print progress
-        if epoch % 5 == 0:
-            print('Epoch: {:02d}'.format(epoch),
-                'loss_train: {:.6f}'.format(loss_train),
-                'loss_val: {:.6f}'.format(loss_val),
-                'time: {:.4f}s'.format(time.time() - t))
-        
-    # testing
-    for dset in loaders.keys():
-        avg_loss = test(model, loaders[dset], loss, device)
-        print('Final results {}: loss = {:.6f}'.format(dset, avg_loss))
-
-    return model, avg_loss
-
+from edit_distance.task.dataset_generator_genomic import EditDistanceGenomicDatasetGenerator
+from hypersmorf.myfunctions import create_parser, generate_datasets,run_model
 
 # %%
+# write subset for all and largest group iinto .txt file
+df = pd.read_csv("./datasets/dataset_FINAL.tsv", sep='\t')
+
+subset_groups={}
+
+
+subset_groups['clean_strings']=df['smorf'].str.contains(r'^[ACTG]+$', na=False)
+
+smorfams=df.clust[df.clust.str.startswith('smorfam') & df.y.str.fullmatch('positive')]
+md,count=mode(smorfams)
+subset_groups['largest_group_strings']=df.clust.str.startswith(md[0]) & df.y.str.fullmatch('positive') & subset_groups['clean_strings']
+
+for name, boo_list in subset_groups.items():
+    with open('./datasets/'+name+'.txt', 'w') as f_out:
+        f_out.writelines("%s\n" % l for l in df[boo_list].smorf.values)
+
+# %%
+# generate train-test-val splits for select datasets and pickle them
+subsets={"strings_test":100,"strings_subset":7000,"strings":35000}
+
+for n, train_size in subsets.items():
+    parser=create_parser('./datasets/'+n+'.pkl','./datasets/clean_strings.txt',  train_size,round(train_size/10),round(train_size/5))
+    generate_datasets(parser)
+
+#%%
+#  Train my models
 
 string_size=153
 n_epoch=20
@@ -83,14 +47,14 @@ dist_types=['hyperbolic', 'euclidean']
 model, avg_loss=np.zeros((len(e_size),len(dist_types)),dtype=object),np.zeros((len(e_size),len(dist_types)))
 
 names=['largest_group_strings', 'string_for_test', 'string_subset']
-dataset_name='./datasets/'+name+'.pkl'
+
 
 for name in names:
+    dataset_name='./datasets/'+name+'.pkl'
     for i in range(len(e_size)):
         for j in range(len(dist_types)):
             model[i][j],avg_loss[i][j]=run_model(dataset_name,e_size[i],dist_types[j],string_size,n_epoch)
-    pickle.dump((model,avg_loss,e_size,dist_types), open(name+'.pkl', "wb"))
-
+    pickle.dump((model,avg_loss,e_size,dist_types), open('./models/'+name+'.pkl', "wb"))
 
 
 # %%
