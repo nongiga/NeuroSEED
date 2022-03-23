@@ -9,13 +9,10 @@ import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn as nn
-from closest_string.test import closest_string_testing
 from edit_distance.task.dataset import EditDistanceDatasetSampled, EditDistanceDatasetComplete,EditDistanceDatasetSampledCalculated
 from edit_distance.task.dataset import EditDistanceDatasetCompleteCalculated
 from edit_distance.models.hyperbolics import RAdam
 from edit_distance.models.pair_encoder import PairEmbeddingDistance
-from hierarchical_clustering.unsupervised.unsupervised import hierarchical_clustering_testing
-from multiple_alignment.guide_tree.guide_tree import approximate_guide_trees
 from util.data_handling.data_loader import get_dataloaders
 from util.ml_and_math.loss_functions import MAPE
 from util.ml_and_math.loss_functions import AverageMeter
@@ -225,15 +222,16 @@ def train(model, loader, optimizer, loss, device):
         # move examples to right device
         sequences, labels = sequences.to(device), labels.to(device)
 
-        with torch.autograd.set_detect_anomaly(True):
-        # forward propagation
-        optimizer.zero_grad()
-        output = model(sequences)
 
-        # loss and backpropagation
-        loss_train = loss(output, labels)
-        loss_train.backward()
-        optimizer.step()
+        with torch.autograd.set_detect_anomaly(True):
+            # forward propagation
+            optimizer.zero_grad()
+            output = model(sequences)
+
+            # loss and backpropagation
+            loss_train = loss(output, labels)
+            loss_train.backward()
+            optimizer.step()
 
         # keep track of average loss
         avg_loss.update(loss_train.data.item(), sequences.shape[0])
@@ -242,7 +240,7 @@ def train(model, loader, optimizer, loss, device):
 
 
 def test(model, loader, loss, device):
-    avg_loss = AverageMeter(len_tuple=2)
+    avg_loss = AverageMeter()
     model.eval()
 
     for sequences, labels in loader:
@@ -252,8 +250,7 @@ def test(model, loader, loss, device):
         # forward propagation and loss computation
         output = model(sequences)
         loss_val = loss(output, labels).data.item()
-        mape = MAPE(output, labels).data.item()
-        avg_loss.update((loss_val, mape), sequences.shape[0])
+        avg_loss.update(loss_val, sequences.shape[0])
 
     return avg_loss.avg
 
