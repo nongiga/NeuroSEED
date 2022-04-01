@@ -55,17 +55,19 @@ def run_model(dataset_name, embedding_size, dist_type, string_size, n_epoch):
         loss_val = test(model, loaders['val'], loss, device)
 
         # print progress
+        '''
         if epoch % 5 == 0:
             print('Epoch: {:02d}'.format(epoch),
                 'loss_train: {:.6f}'.format(loss_train),
                 'loss_val: '.format(loss_val),
                 'time: {:.4f}s'.format(time.time() - t))
+        '''
         
         
     # testing
     for dset in loaders.keys():
         avg_loss = test(model, loaders[dset], loss, device)
-        print('Final results {}: loss = {:.6f}'.format(dset, avg_loss))
+        # print('Final results {}: loss = {:.6f}'.format(dset, avg_loss))
 
     return model, avg_loss
 
