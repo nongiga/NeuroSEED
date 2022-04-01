@@ -11,8 +11,21 @@ from edit_distance.task.dataset_generator_genomic import EditDistanceGenomicData
 from util.data_handling.data_loader import get_dataloaders
 from edit_distance.train import load_edit_distance_dataset,train,test
 from edit_distance.models.pair_encoder import PairEmbeddingDistance
-from edit_distance.models.linear_encoder import LinearEncoder
 
+class LinearEncoder(nn.Module):
+    """  Linear model which simply flattens the sequence and applies a linear transformation. """
+
+    def __init__(self, len_sequence, embedding_size, alphabet_size=4):
+        super(LinearEncoder, self).__init__()
+        self.encoder = nn.Linear(in_features=alphabet_size * len_sequence, 
+                                 out_features=embedding_size)
+
+    def forward(self, sequence):
+        # flatten sequence and apply layer
+        B = sequence.shape[0]
+        sequence = sequence.reshape(B, -1)
+        emb = self.encoder(sequence)
+        return emb
 
 def run_model(dataset_name, embedding_size, dist_type, string_size, n_epoch):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
